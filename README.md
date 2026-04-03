@@ -165,6 +165,22 @@ NPC Protocol rides on top of MCP (not a replacement) and is complementary to A2A
 
 ---
 
+## Example: Code Reviewer NPC
+
+[`examples/code-reviewer-npc/`](examples/code-reviewer-npc/) — a fully working NPC that wraps a senior engineer's code review opinions as a sellable service. Shows knowledge packaging, session memory, and a confirmation gate in ~150 lines.
+
+```bash
+git clone https://github.com/macropulse/npc-protocol
+cd npc-protocol/examples/code-reviewer-npc
+pip install npc-protocol openai
+export OPENAI_API_KEY=sk-...
+python main.py
+```
+
+The reviewer's persona — red lines, strong preferences, style notes — lives at the top of `main.py`. **Change it and you have a completely different product.**
+
+---
+
 ## Production Reference: SwiftDeploy
 
 [SwiftDeploy](https://swiftdeploy.ai) independently converged on this pattern before the spec was written. See the full case study: [`sdk/python/examples/swiftdeploy_case_study.md`](sdk/python/examples/swiftdeploy_case_study.md).

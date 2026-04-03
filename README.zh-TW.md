@@ -163,6 +163,22 @@ NPC 協議架設在 MCP 之上（不是替代品），並與 A2A 互補。
 
 ---
 
+## 範例：Code Reviewer NPC
+
+[`examples/code-reviewer-npc/`](examples/code-reviewer-npc/) — 一個完整可運行的 NPC，把一位資深工程師的 Code Review 風格包裝成可販賣的服務。展示了知識打包、會話記憶，以及確認閘門，約 150 行。
+
+```bash
+git clone https://github.com/macropulse/npc-protocol
+cd npc-protocol/examples/code-reviewer-npc
+pip install npc-protocol openai
+export OPENAI_API_KEY=sk-...
+python main.py
+```
+
+審查者的人設——紅線、強烈偏好、風格備註——放在 `main.py` 的頂部。**改掉它，你就有了一個完全不同的產品。**
+
+---
+
 ## 生產環境參考：SwiftDeploy
 
 [SwiftDeploy](https://swiftdeploy.ai) 在這份規格寫出來之前，就已獨立收斂到這個模式。完整案例研究：[`sdk/python/examples/swiftdeploy_case_study.md`](sdk/python/examples/swiftdeploy_case_study.md)。
