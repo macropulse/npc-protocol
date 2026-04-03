@@ -3,15 +3,20 @@ NPCServer — the core class for building NPC Protocol servers.
 
 Wraps an MCP server and automatically:
 - Registers the NPC Card as an MCP resource at npc://card
+- Registers the Skill File as an MCP resource at npc://skill (if provided)
+- Registers a lightweight version check at npc://skill-version (if skill file provided)
 - Registers the execute tool with the standard NPC Protocol schema
 - Manages sessions via the provided SessionStore
 - Routes execute calls to the registered instruction handler
+- Injects skill_version into every execute() response (if skill file provided)
 """
 
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable, Coroutine
+from pathlib import Path
 from typing import Any
 
 from mcp.server import Server
@@ -37,6 +42,23 @@ InstructionHandler = Callable[
 ]
 
 
+def _parse_skill_frontmatter(content: str) -> dict[str, str]:
+    """
+    Parse YAML frontmatter from a Markdown skill file.
+    Returns a dict of frontmatter key-value pairs.
+    Only handles simple string values (no nested YAML).
+    """
+    match = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
+    if not match:
+        return {}
+    frontmatter = {}
+    for line in match.group(1).splitlines():
+        if ":" in line:
+            key, _, value = line.partition(":")
+            frontmatter[key.strip()] = value.strip()
+    return frontmatter
+
+
 class NPCServer:
     """
     An NPC Protocol server. Wraps an MCP server with protocol scaffolding.
@@ -48,7 +70,7 @@ class NPCServer:
             domain="your domain description",
         )
 
-        npc = NPCServer(card=card)
+        npc = NPCServer(card=card, skill_file="SKILL.md")
 
         @npc.instruction_handler
         async def handle(instruction: str, session_id: str, ctx: NPCContext) -> NPCResponse:
@@ -62,10 +84,26 @@ class NPCServer:
         self,
         card: NPCCard,
         session_store: SessionStore | None = None,
+        skill_file: str | Path | None = None,
     ) -> None:
         self.card = card
         self._session_store = session_store or SessionStore.in_memory()
         self._handler: InstructionHandler | None = None
+        self._skill_content: str | None = None
+        self._skill_version: str | None = None
+
+        if skill_file is not None:
+            path = Path(skill_file)
+            if path.exists():
+                self._skill_content = path.read_text(encoding="utf-8")
+                meta = _parse_skill_frontmatter(self._skill_content)
+                self._skill_version = meta.get("version")
+                # Sync card fields
+                if self._skill_version and not card.skill_version:
+                    card.skill_version = self._skill_version
+                if not card.skill_file_uri:
+                    card.skill_file_uri = "npc://skill"
+
         self._mcp = Server(card.name)
         self._register_mcp_handlers()
 
@@ -79,7 +117,7 @@ class NPCServer:
 
         @mcp.list_resources()
         async def list_resources() -> list[Resource]:
-            return [
+            resources = [
                 Resource(
                     uri="npc://card",
                     name="NPC Card",
@@ -87,6 +125,20 @@ class NPCServer:
                     mimeType="application/json",
                 )
             ]
+            if self._skill_content is not None:
+                resources.append(Resource(
+                    uri="npc://skill",
+                    name="Skill File",
+                    description=f"Operational guide for using {self.card.name}",
+                    mimeType="text/markdown",
+                ))
+                resources.append(Resource(
+                    uri="npc://skill-version",
+                    name="Skill File Version",
+                    description="Current version of the Skill File (lightweight drift check)",
+                    mimeType="application/json",
+                ))
+            return resources
 
         @mcp.read_resource()
         async def read_resource(uri: str) -> ReadResourceResult:
@@ -100,11 +152,35 @@ class NPCServer:
                         )
                     ]
                 )
+            if uri == "npc://skill":
+                if self._skill_content is None:
+                    raise ValueError("This NPC does not publish a Skill File")
+                return ReadResourceResult(
+                    contents=[
+                        TextResourceContents(
+                            uri="npc://skill",
+                            mimeType="text/markdown",
+                            text=self._skill_content,
+                        )
+                    ]
+                )
+            if uri == "npc://skill-version":
+                if self._skill_version is None:
+                    raise ValueError("This NPC does not publish a Skill File")
+                return ReadResourceResult(
+                    contents=[
+                        TextResourceContents(
+                            uri="npc://skill-version",
+                            mimeType="application/json",
+                            text=json.dumps({"version": self._skill_version}),
+                        )
+                    ]
+                )
             raise ValueError(f"Unknown resource: {uri}")
 
         @mcp.list_tools()
         async def list_tools() -> list[Tool]:
-            tools = [
+            return [
                 Tool(
                     name="execute",
                     description=(
@@ -135,7 +211,6 @@ class NPCServer:
                     },
                 )
             ]
-            return tools
 
         @mcp.call_tool()
         async def call_tool(name: str, arguments: dict[str, Any]) -> CallToolResult:
@@ -177,11 +252,16 @@ class NPCServer:
                 recovery_hint="An unexpected error occurred. Please try again or contact support.",
             )
 
+        # Inject skill_version into every response (passive drift detection)
+        response_dict = response.to_dict()
+        if self._skill_version is not None:
+            response_dict["skill_version"] = self._skill_version
+
         return CallToolResult(
             content=[
                 TextContent(
                     type="text",
-                    text=json.dumps(response.to_dict(), indent=2),
+                    text=json.dumps(response_dict, indent=2),
                 )
             ]
         )
@@ -192,6 +272,10 @@ class NPCServer:
 
         async def _run() -> None:
             async with stdio_server() as (read_stream, write_stream):
-                await self._mcp.run(read_stream, write_stream, self._mcp.create_initialization_options())
+                await self._mcp.run(
+                    read_stream,
+                    write_stream,
+                    self._mcp.create_initialization_options(),
+                )
 
         asyncio.run(_run())

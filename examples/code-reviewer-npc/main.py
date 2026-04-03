@@ -97,7 +97,7 @@ card = NPCCard(
     contact="https://github.com/macropulse/npc-protocol",
 )
 
-npc = NPCServer(card=card)
+npc = NPCServer(card=card, skill_file="SKILL.md")
 
 
 # ---------------------------------------------------------------------------

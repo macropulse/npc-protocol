@@ -41,10 +41,10 @@ This is exactly the pattern for domain-expert agent services:
 
 ## What NPC Protocol Defines
 
-NPC Protocol is a thin specification layer that sits **on top of MCP** (as transport) and is **complementary to A2A** (for cross-org discovery). It defines four things:
+NPC Protocol is a thin specification layer that sits **on top of MCP** (as transport) and is **complementary to A2A** (for cross-org discovery). It defines five things:
 
 ### 1. [NPC Card](./npc-card.md)
-A JSON identity document published as an MCP resource at `npc://card`. Declares the NPC's domain, instruction interface type, session model, confirmation gate types, and pricing hints. This is how calling agents discover what an NPC can do before sending any instructions.
+A JSON identity document published as an MCP resource at `npc://card`. Declares the NPC's domain, instruction interface type, session model, confirmation gate types, pricing hints, and a pointer to the Skill File. This is how calling agents discover what an NPC can do before sending any instructions.
 
 ### 2. [Instruction Interface](./instruction-interface.md)
 A standard contract for natural language instruction exchange. Every NPC exposes a single MCP tool — `execute` — that accepts free-form text instructions. The response envelope defines standard types (`in_progress`, `needs_input`, `needs_confirmation`, `completed`, `failed`) and threading via `session_id`.
@@ -54,6 +54,9 @@ A first-class protocol primitive for agent-to-agent authorization. When an NPC i
 
 ### 4. [Session Model](./session-model.md)
 Defines session ownership, memory tiers, and lifecycle semantics. Sessions are NPC-owned. Three memory tiers are defined: ephemeral (call-scoped), session (multi-turn), and persistent (cross-session). Calling agents thread sessions via `session_id`.
+
+### 5. [Skill File](./skill-file.md)
+A versioned Markdown document published at `npc://skill` that teaches calling agents how to operate the NPC correctly. Where the NPC Card says *what* the NPC can do, the Skill File says *how* to use it well — primary interface patterns, response extensions, operational timing constraints, and ordered best practices. The NPC injects `skill_version` into every response so calling agents detect when the Skill File has been updated.
 
 ---
 
@@ -75,11 +78,14 @@ CUSTOMER'S SIDE
      | natural language
      v
   [ Calling Agent ]   <-- customer builds this however they want
-     |
+     | loads npc://skill on connect, reloads on skill_version drift
      | MCP calls
      v
 NPC PROTOCOL LAYER  <-- this spec
-  [ NPC Card ]  [ execute tool ]  [ Confirmation Gates ]  [ Session Model ]
+  [ NPC Card ]  [ Skill File ]  [ execute tool ]  [ Confirmation Gates ]  [ Session Model ]
+  npc://card    npc://skill     standard tool      advisory/required/      ephemeral/session/
+                npc://skill-    + response         destructive levels      persistent tiers
+                version         envelope
      |
      | SDK implements protocol surface
      v
@@ -104,7 +110,7 @@ The protocol boundary is only the middle layer. Everything above and below is th
 |---|---|---|
 | MCP | Transport + tool primitives | Typed tool calls, resources, prompts between host and server |
 | A2A | Cross-org task routing | Sending tasks between agents at different organizations |
-| **NPC Protocol** | **Domain-expert agent packaging** | **NL instruction interface, identity, safety gates, session semantics** |
+| **NPC Protocol** | **Domain-expert agent packaging** | **NL instruction interface, identity, skill file, safety gates, session semantics** |
 
 NPC Protocol does not compete with MCP or A2A. An NPC server:
 - **Uses MCP** as its transport (NPC Card is an MCP resource, `execute` is an MCP tool)
@@ -124,6 +130,7 @@ SwiftDeploy's NPC Card, confirmation gate flows, and session memory model are do
 ## Spec Documents
 
 - [`npc-card.md`](./npc-card.md) — NPC Card specification
+- [`skill-file.md`](./skill-file.md) — Skill File specification
 - [`instruction-interface.md`](./instruction-interface.md) — Natural language instruction interface
 - [`confirmation-gate.md`](./confirmation-gate.md) — Confirmation gate primitives
 - [`session-model.md`](./session-model.md) — Session and memory semantics

@@ -74,6 +74,8 @@ class NPCCard(BaseModel):
     confirmation_gates: list[ConfirmationGateDeclaration] = Field(default_factory=list)
     pricing_hints: PricingHints | None = None
     contact: str | None = None
+    skill_file_uri: str | None = Field(default=None, description="URI of the Skill File resource (default: npc://skill)")
+    skill_version: str | None = Field(default=None, description="Current version of the Skill File")
 
     def model_post_init(self, __context: Any) -> None:
         # Enforce spec: natural_language NPCs must expose execute

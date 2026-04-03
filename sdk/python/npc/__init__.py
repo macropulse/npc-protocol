@@ -43,12 +43,13 @@ from .response import (
     ProtectedResource,
     ResponseType,
 )
-from .server import NPCServer
+from .server import NPCServer, _parse_skill_frontmatter
 from .session import InMemorySessionStore, SessionStore
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
     "NPCServer",
+    "_parse_skill_frontmatter",
     "NPCCard",
     "NPCContext",
     "SessionStore",

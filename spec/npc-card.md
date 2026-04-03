@@ -68,6 +68,8 @@ A calling agent reads it via a standard MCP `resources/read` call:
     "approximate_cost": "10-50 credits"
   },
   "contact": "https://swiftdeploy.ai",
+  "skill_file_uri": "npc://skill",
+  "skill_version": "1.0.0",
   "mcp_tools": ["execute"]
 }
 ```
@@ -97,6 +99,8 @@ A calling agent reads it via a standard MCP `resources/read` call:
 | `confirmation_gates` | object[] | Declared gate types this NPC may emit. See [Confirmation Gates](#confirmation_gates). |
 | `pricing_hints` | object | Non-binding pricing metadata. See [Pricing Hints](#pricing_hints). |
 | `contact` | string | URL or email for the NPC provider |
+| `skill_file_uri` | string | URI of the Skill File resource. Defaults to `npc://skill` if a Skill File is published. See [`skill-file.md`](./skill-file.md). |
+| `skill_version` | string | Current version of the Skill File. Used by calling agents to detect drift without fetching the full file. |
 
 ---
 
@@ -178,6 +182,23 @@ Non-binding metadata to help calling agents estimate cost before initiating a se
 | `unit` | string | Billing unit: `"session"`, `"instruction"`, `"token"`, `"minute"` |
 | `approximate_cost` | string | Non-binding human-readable cost estimate |
 | `free_tier` | string | Optional description of any free tier |
+
+---
+
+## Skill File Fields
+
+When an NPC publishes a Skill File, the NPC Card SHOULD include `skill_file_uri` and `skill_version`:
+
+```json
+{
+  "skill_file_uri": "npc://skill",
+  "skill_version": "1.2.0"
+}
+```
+
+The `skill_version` in the NPC Card gives calling agents a quick version check on first connection without fetching the full Skill File. The NPC also injects `skill_version` into every `execute()` response so calling agents detect drift passively during a session.
+
+See [`skill-file.md`](./skill-file.md) for the full Skill File specification.
 
 ---
 
